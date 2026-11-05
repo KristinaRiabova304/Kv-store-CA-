@@ -1,0 +1,29 @@
+# Додаткові перевірки, 2026-11-01, CloudShell us-east-1
+# Команди запускались по одній без tee, тому вивід скопійовано з терміналу вручну.
+# Довгі повідомлення про помилки скорочено до суті, позначено [...].
+
+## Pvoclabs
+$ aws iam get-role-policy --role-name voclabs --policy-name Pvoclabs
+aws: [ERROR]: An error occurred (AccessDenied) when calling the GetRolePolicy operation: User: arn:aws:sts::891377215247:assumed-role/voclabs/user5460708=kriabova@kse.org.ua is not authorized to perform: iam:GetRolePolicy on resource: role voclabs with an explicit deny in an identity-based policy. [...]
+
+## Instance profiles
+$ aws iam list-instance-profiles --query 'InstanceProfiles[].[InstanceProfileName,Roles[0].RoleName]' --output table
+|  EMR_EC2_DefaultRole |  EMR_EC2_DefaultRole  |
+|  myS3Role            |  myS3Role             |
+
+## PassRole на конкретні ролі
+$ aws iam simulate-principal-policy --policy-source-arn arn:aws:iam::891377215247:role/voclabs --action-names iam:PassRole --resource-arns arn:aws:iam::891377215247:role/lambda-run-role arn:aws:iam::891377215247:role/myS3Role arn:aws:iam::891377215247:role/EMR_EC2_DefaultRole --query 'EvaluationResults[].[EvalResourceName,EvalDecision]' --output table
+|  arn:aws:iam::${Account}:${ResourceType}/${ResourceName}  |  implicitDeny |
+
+## Регіони
+$ for r in us-east-2 us-west-1 us-west-2 eu-west-1; do aws ec2 describe-vpcs --region $r --query 'length(Vpcs)'; done
+us-east-2: UnauthorizedOperation [...] with an explicit deny in a service control policy: arn:aws:organizations::654654186844:policy/o-i64vljlvae/service_control_policy/p-w9bhogyj
+us-west-1: UnauthorizedOperation [...] with an explicit deny in a service control policy [...]
+us-west-2: 1
+eu-west-1: UnauthorizedOperation [...] with an explicit deny in a service control policy [...]
+
+## Cost Explorer реальним викликом
+$ aws ce get-cost-and-usage --time-period Start=2026-10-01,End=2026-11-01 --granularity MONTHLY --metrics UnblendedCost
+"TimePeriod": { "Start": "2026-10-01", "End": "2026-11-01" },
+"Total": { "UnblendedCost": { "Amount": "-0.0000000002", "Unit": "USD" } },
+"Estimated": true

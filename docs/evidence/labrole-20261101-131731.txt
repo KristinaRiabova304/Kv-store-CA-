@@ -1,0 +1,110 @@
+# Докази щодо LabRole, Sun Nov  1 01:17:31 PM UTC 2026
+
+## 1. Хто я? Ідентичність, яку використовують консоль і CLI
+==================================================
+$ aws sts get-caller-identity
+--------------------------------------------------
+{
+    "UserId": "AROA47CRY44HYDHXOJG4U:user5460708=kriabova@kse.org.ua",
+    "Account": "891377215247",
+    "Arn": "arn:aws:sts::891377215247:assumed-role/voclabs/user5460708=kriabova@kse.org.ua"
+}
+код виходу: 0
+
+## 2. Сама LabRole
+==================================================
+$ aws iam get-role --role-name LabRole
+--------------------------------------------------
+
+aws: [ERROR]: An error occurred (NoSuchEntity) when calling the GetRole operation: The role with name LabRole cannot be found.
+код виходу: 254
+
+==================================================
+$ aws iam list-attached-role-policies --role-name LabRole
+--------------------------------------------------
+
+aws: [ERROR]: An error occurred (NoSuchEntity) when calling the ListAttachedRolePolicies operation: The role with name LabRole cannot be found.
+код виходу: 254
+
+==================================================
+$ aws iam list-role-policies --role-name LabRole
+--------------------------------------------------
+
+aws: [ERROR]: An error occurred (NoSuchEntity) when calling the ListRolePolicies operation: The role with name LabRole cannot be found.
+код виходу: 254
+
+==================================================
+$ aws iam list-instance-profiles-for-role --role-name LabRole
+--------------------------------------------------
+
+aws: [ERROR]: An error occurred (NoSuchEntity) when calling the ListInstanceProfilesForRole operation: The role with name LabRole cannot be found.
+код виходу: 254
+
+## 3. Вміст кожної прикріпленої managed policy
+## 4. Inline-політики
+## 5. Policy simulator: що може LabRole
+==================================================
+$ aws iam simulate-principal-policy --policy-source-arn  --action-names ec2:CreateVpc ec2:RunInstances ec2:CreateNatGateway s3:CreateBucket dynamodb:CreateTable lambda:CreateFunction cloudformation:CreateStack iam:CreateRole iam:CreatePolicy iam:AttachRolePolicy iam:CreateUser iam:PassRole organizations:CreateAccount ce:GetCostAndUsage --query EvaluationResults[].[EvalActionName,EvalDecision] --output table
+--------------------------------------------------
+
+aws: [ERROR]: An error occurred (ParamValidation): Parameter validation failed:
+Invalid length for parameter PolicySourceArn, value: 0, valid min length: 20
+код виходу: 252
+
+## 6. Спроби й помилки з ПОТОЧНОЮ ідентичністю, нешкідливі dry-run
+==================================================
+$ aws ec2 run-instances --dry-run --image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 --instance-type t3.micro --region us-east-1
+--------------------------------------------------
+
+aws: [ERROR]: An error occurred (DryRunOperation) when calling the RunInstances operation: Request would have succeeded, but DryRun flag is set.
+код виходу: 254
+
+==================================================
+$ aws ec2 run-instances --dry-run --image-id resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 --instance-type m5.4xlarge --region us-east-1
+--------------------------------------------------
+
+aws: [ERROR]: An error occurred (UnauthorizedOperation) when calling the RunInstances operation: You are not authorized to perform this operation. User: arn:aws:sts::891377215247:assumed-role/voclabs/user5460708=kriabova@kse.org.ua is not authorized to perform: ec2:RunInstances on resource: arn:aws:ec2:us-east-1:891377215247:instance/* with an explicit deny in an identity-based policy. Encoded authorization failure message: TysF62aMBRGJhK_80lMxZCpYB03Pilydmo7J5JgU4PdYOIdGi8Bd5dmTiy24hHgCKKqNE37pFd4uAar6ITACAkcvlyO3eex6BK2uxtX7I134Pf0752Rg6J8HRQNbSXBroKpDrAMtNpiVmpJLF_8q8i_A2EnmAqAAWDduBdy5QcHKN6SVsSNgBXnPzd2x5ib9zZ5EVD-bVBx4WObGEDvreycVkGE3KX1zb_Ailozw99hfgH0mPT74eeJzRzelsSycvvBL2SPRNc-sdPer6O07xlPnktRW9_QUwWKPQF8Vhkei4sas_K7hOgJ4Jl-Y3Dz8nqovPa1zftTLN96g0OyN_gMtY4phEZtrYFc7HRGCNRQE2-IXIM2nQv52dgoyvMzfOhbwiBqyOxIqP07bVybkiIfz7mHWND9XmdakdYztBNSlJdO_ggsXWCIX9vixuQS8rI-kUGhso3UU1OrMXFO03DUlMtmEa-Qu3lqlOs6kk0SLQZ_co6o_9TZyJaUh4tfTE-9akU3fKXKIAlEcb7rSNf4MOs1BpZ-aQmGWqXXxNU1tvSjNqW0fUraits9k6fyxm0r6xMTxHJ-jxA-6Cs-C0wh16N2Tx-bpbqFw25zJU3h9ldRsapYJj5SWM4qWwa5PeX8GE3bsWAG61CPgbju64yKvLiiuW7C0hcMtqyO-RIBYvW4ZCGu5T5xcT2L2vxZoCBaY7LJRYTr482GV9yDM1aGze-F_afC0hjlqpi5t2L8mnrHkKKSbwLx2wngjLkHdVkLCXslWIpio5LZjPTl5SUcK9XrFEj8rNCa4WnydSOLSAKaolbRQe6TnnhFJ_xXH-IznxETm59wlcq-qDM5Z1CEnuiFI0FfEc03jB3-kluRc24yqrpWHt5CgPfBHDs5d7gqklOynDdpMLfbGpdYZJY4y7rVzLiaGdWZRP16i4jOFZnfrIEZuK69kTVpDmQI3nuwgBO1MUFqa5remWB11upcbLQI19XpxjRZjLQgJRKZK7dIYoIY
+код виходу: 254
+
+==================================================
+$ aws iam create-policy --policy-name kvstore-probe --policy-document {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"ec2:DescribeVpcs","Resource":"*"}]}
+--------------------------------------------------
+
+aws: [ERROR]: An error occurred (AccessDenied) when calling the CreatePolicy operation: User: arn:aws:sts::891377215247:assumed-role/voclabs/user5460708=kriabova@kse.org.ua is not authorized to perform: iam:CreatePolicy on resource: policy kvstore-probe because no identity-based policy allows the iam:CreatePolicy action. Go to https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/authorization-details/64od2m2aatgtvox27xke8shec for complete details, or call the GetRequestAuthorizationDetails API with the following authorization id: 64od2m2aatgtvox27xke8shec
+код виходу: 254
+
+==================================================
+$ aws iam create-role --role-name kvstore-probe --assume-role-policy-document {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}
+--------------------------------------------------
+
+aws: [ERROR]: An error occurred (AccessDenied) when calling the CreateRole operation: User: arn:aws:sts::891377215247:assumed-role/voclabs/user5460708=kriabova@kse.org.ua is not authorized to perform: iam:CreateRole on resource: arn:aws:iam::891377215247:role/kvstore-probe because no identity-based policy allows the iam:CreateRole action. Go to https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/authorization-details/dxe79pexhnuakgeohclmuqnad for complete details, or call the GetRequestAuthorizationDetails API with the following authorization id: dxe79pexhnuakgeohclmuqnad
+код виходу: 254
+
+==================================================
+$ aws iam create-user --user-name kvstore-probe
+--------------------------------------------------
+
+aws: [ERROR]: An error occurred (AccessDenied) when calling the CreateUser operation: User: arn:aws:sts::891377215247:assumed-role/voclabs/user5460708=kriabova@kse.org.ua is not authorized to perform: iam:CreateUser on resource: arn:aws:iam::891377215247:user/kvstore-probe because no identity-based policy allows the iam:CreateUser action. Go to https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/authorization-details/eww2u5kjqzlxfkngq7r7cn0a4 for complete details, or call the GetRequestAuthorizationDetails API with the following authorization id: eww2u5kjqzlxfkngq7r7cn0a4
+код виходу: 254
+
+==================================================
+$ aws ec2 describe-regions --query Regions[].RegionName --output text
+--------------------------------------------------
+ap-south-1	eu-north-1	eu-west-3	eu-west-2	eu-west-1	ap-northeast-3	ap-northeast-2	ap-northeast-1	ca-central-1	sa-east-1	ap-southeast-1	ap-southeast-2	eu-central-1	us-east-1	us-east-2	us-west-1	us-west-2
+код виходу: 0
+
+==================================================
+$ aws ec2 describe-vpcs --region us-west-2 --query Vpcs[].VpcId
+--------------------------------------------------
+[
+    "vpc-00a809b44c9b0ee42"
+]
+код виходу: 0
+
+==================================================
+$ aws ec2 describe-vpcs --region eu-central-1 --query Vpcs[].VpcId
+--------------------------------------------------
+
+aws: [ERROR]: An error occurred (UnauthorizedOperation) when calling the DescribeVpcs operation: You are not authorized to perform this operation. User: arn:aws:sts::891377215247:assumed-role/voclabs/user5460708=kriabova@kse.org.ua is not authorized to perform: ec2:DescribeVpcs with an explicit deny in a service control policy: arn:aws:organizations::654654186844:policy/o-i64vljlvae/service_control_policy/p-w9bhogyj
+код виходу: 254
+

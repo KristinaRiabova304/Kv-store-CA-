@@ -1,0 +1,19 @@
+Сервіс | Квота | Значення   регіон us-east-1, Sun Nov  1 01:41:26 PM UTC 2026
+ec2	Running On-Demand Standard (A, C, D, H, I, M, R, T, Z) instances	256.0
+
+aws: [ERROR]: An error occurred (TooManyRequestsException) when calling the ListServiceQuotas operation (reached max retries: 2): The request failed because you exceeded the rate quota for this operation.
+vpc	VPCs per Region	5.0
+vpc	Subnets per VPC	200.0
+vpc	Internet gateways per Region	5.0
+vpc	NAT gateways per Availability Zone	5.0
+vpc	Inbound or outbound rules per security group	60.0
+elasticloadbalancing	Application Load Balancers per Region	50.0
+lambda	Concurrent executions	400.0
+dynamodb	Maximum number of tables	2500.0
+
+aws: [ERROR]: An error occurred (TooManyRequestsException) when calling the ListServiceQuotas operation (reached max retries: 2): The request failed because you exceeded the rate quota for this operation.
+
+Поточне використання:
+VPCs: 2
+Запущені сервери: 0
+Elastic IPs: 0

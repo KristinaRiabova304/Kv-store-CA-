@@ -1,0 +1,60 @@
+## Extra: роли в аккаунте
+----------------------------------------------------------------------------------------------------
+|                                             ListRoles                                            |
++----------------------------------------+---------------------------------------------------------+
+|  AWSServiceRoleForAmazonSSM            |  /aws-service-role/ssm.amazonaws.com/                   |
+|  AWSServiceRoleForAPIGateway           |  /aws-service-role/ops.apigateway.amazonaws.com/        |
+|  AWSServiceRoleForAutoScaling          |  /aws-service-role/autoscaling.amazonaws.com/           |
+|  AWSServiceRoleForAWSCloud9            |  /aws-service-role/cloud9.amazonaws.com/                |
+|  AWSServiceRoleForCloudWatchEvents     |  /aws-service-role/events.amazonaws.com/                |
+|  AWSServiceRoleForECS                  |  /aws-service-role/ecs.amazonaws.com/                   |
+|  AWSServiceRoleForElastiCache          |  /aws-service-role/elasticache.amazonaws.com/           |
+|  AWSServiceRoleForElasticBeanstalk     |  /aws-service-role/elasticbeanstalk.amazonaws.com/      |
+|  AWSServiceRoleForElasticLoadBalancing |  /aws-service-role/elasticloadbalancing.amazonaws.com/  |
+|  AWSServiceRoleForOrganizations        |  /aws-service-role/organizations.amazonaws.com/         |
+|  AWSServiceRoleForRDS                  |  /aws-service-role/rds.amazonaws.com/                   |
+|  AWSServiceRoleForResourceExplorer     |  /aws-service-role/resource-explorer-2.amazonaws.com/   |
+|  AWSServiceRoleForSupport              |  /aws-service-role/support.amazonaws.com/               |
+|  AWSServiceRoleForTrustedAdvisor       |  /aws-service-role/trustedadvisor.amazonaws.com/        |
+|  EMR_AutoScaling_DefaultRole           |  /                                                      |
+|  EMR_DefaultRole                       |  /                                                      |
+|  EMR_EC2_DefaultRole                   |  /                                                      |
+|  lambda-run-role                       |  /                                                      |
+|  myBasicLambdaRole                     |  /                                                      |
+|  myS3Role                              |  /                                                      |
+|  vocareum                              |  /                                                      |
+|  vocareum-eventbridge                  |  /                                                      |
+|  voclabs                               |  /                                                      |
++----------------------------------------+---------------------------------------------------------+
+## Extra: роль voclabs
+
+aws: [ERROR]: An error occurred (AccessDenied) when calling the GetRole operation: User: arn:aws:sts::891377215247:assumed-role/voclabs/user5460708=kriabova@kse.org.ua is not authorized to perform: iam:GetRole on resource: role voclabs with an explicit deny in an identity-based policy. Go to https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/authorization-details/wlt5zlhk01zj5xqvvxihktp3 for complete details, or call the GetRequestAuthorizationDetails API with the following authorization id: wlt5zlhk01zj5xqvvxihktp3
+{
+    "AttachedPolicies": [
+        {
+            "PolicyName": "ReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/ReadOnlyAccess"
+        }
+    ]
+}
+{
+    "PolicyNames": [
+        "Pvoclabs"
+    ]
+}
+## Extra: simulator для voclabs
+-------------------------------------------------
+|            SimulatePrincipalPolicy            |
++------------------------------+----------------+
+|  ec2:CreateVpc               |  allowed       |
+|  ec2:CreateNatGateway        |  allowed       |
+|  s3:CreateBucket             |  allowed       |
+|  dynamodb:CreateTable        |  allowed       |
+|  lambda:CreateFunction       |  allowed       |
+|  cloudformation:CreateStack  |  allowed       |
+|  iam:CreateRole              |  implicitDeny  |
+|  iam:CreatePolicy            |  implicitDeny  |
+|  iam:PassRole                |  implicitDeny  |
+|  organizations:CreateAccount |  explicitDeny  |
+|  ce:GetCostAndUsage          |  allowed       |
++------------------------------+----------------+

@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# IAM для M1: read-only managed policy і роль, яку може прийняти інший principal.
+# УВАГА: sandbox AWS Academy забороняє iam:CreatePolicy та iam:CreateRole, тому стек
+# постачається як код, а відмову при деплої збережено в docs/evidence/.
+# Див. docs/adr/0004-readonly-policy.md. Поля Description я пишу англійською,
+# бо IAM не приймає кирилицю в описах ролей і політик.
+Description: >
+  kv-store M1 IAM: a read-only managed policy and a role that another principal
+  can assume. NOTE: the AWS Academy sandbox denies iam:CreatePolicy and
+  iam:CreateRole, so this stack is delivered as code and its refused deployment
+  is recorded in docs/evidence/. See docs/adr/0004-readonly-policy.md.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: kvstore
+  # ARN principal-а, якому дозволено прийняти роль. Порожньо = root цього акаунта.
+  TrustedPrincipalArn:
+    Type: String
+    Default: ""
+    Description: >
+      ARN of the principal allowed to assume the role (user, role or account root).
+      Empty = the root of this account, i.e. any principal of this account that is
+      itself allowed to call sts:AssumeRole on this role.
+  RequireMfa:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "false"
+
+Conditions:
+  UseAccountRoot: !Equals [!Ref TrustedPrincipalArn, ""]
+  MfaRequired: !Equals [!Ref RequireMfa, "true"]
+
+Resources:
+  ReadOnlyPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${ProjectName}-read-only"
+      Description: View resource metadata only. No writes, no data reads.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # 1. Дозволяю переглядати ресурси, тобто їхні метадані, для сервісів, які я використовую.
+          - Sid: ViewResourceMetadata
+            Effect: Allow
+            Action:
+              - ec2:Describe*
+              - cloudformation:Describe*
+              - cloudformation:List*
+              - s3:ListAllMyBuckets
+              - s3:GetBucket*
+              - dynamodb:DescribeTable
+              - dynamodb:ListTables
+              - dynamodb:ListTagsOfResource
+              - elasticloadbalancing:Describe*
+              - autoscaling:Describe*
+              - cloudwatch:Describe*
+              - cloudwatch:List*
+              - cloudwatch:GetMetric*
+              - logs:Describe*
+              - iam:List*
+              - iam:GetRole
+              - iam:GetPolicy
+              - iam:GetPolicyVersion
+              - servicequotas:Get*
+              - servicequotas:List*
+              - tag:GetResources
+            Resource: "*"
+          # 2. Явна заборона на читання ДАНИХ і СЕКРЕТІВ.
+          #    Явний Deny перемагає будь-який Allow, навіть з іншої прикріпленої політики.
+          - Sid: DenyReadingData
+            Effect: Deny
+            Action:
+              # вміст і ключі об'єктів S3: у сховищі ключ-значення ключ теж є даними
+              - s3:GetObject*
+              - s3:ListBucket
+              - s3:ListBucketVersions
+              # записи DynamoDB
+              - dynamodb:GetItem
+              - dynamodb:BatchGetItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:PartiQLSelect
+              - dynamodb:GetRecords
+              # секрети
+              - secretsmanager:GetSecretValue
+              - ssm:GetParameter*
+              - kms:Decrypt
+              # логи
+              - logs:GetLogEvents
+              - logs:FilterLogEvents
+              - logs:StartQuery
+              - logs:GetQueryResults
+              - logs:StartLiveTail
+              # user data і вивід консолі серверів: туди часто потрапляють секрети
+              - ec2:DescribeInstanceAttribute
+              - ec2:DescribeLaunchTemplateVersions
+              - ec2:GetLaunchTemplateData
+              - ec2:GetConsoleOutput
+              - ec2:GetConsoleScreenshot
+              - autoscaling:DescribeLaunchConfigurations
+              # змінні середовища Lambda і код функцій
+              - lambda:GetFunction
+              - lambda:GetFunctionConfiguration
+              - lambda:ListFunctions
+              # повні шаблони стеків
+              - cloudformation:GetTemplate
+            Resource: "*"
+          # Усе інше, тобто кожен Create*, Put*, Delete*, Update*, заборонено
+          # НЕЯВНО: жоден statement цього не дозволяє.
+
+  ReadOnlyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-read-only-role"
+      Description: Assumable role for auditors / tooling that may only look.
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:      
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !If
+                - UseAccountRoot
+                - !Sub "arn:aws:iam::${AWS::AccountId}:root"
+                - !Ref TrustedPrincipalArn
+            Action: sts:AssumeRole
+            Condition: !If
+              - MfaRequired
+              - Bool: { "aws:MultiFactorAuthPresent": "true" }
+              - !Ref AWS::NoValue
+      ManagedPolicyArns:             
+        - !Ref ReadOnlyPolicy
+      Tags:
+        - { Key: project, Value: !Ref ProjectName }
+        - { Key: milestone, Value: m1 }
+
+Outputs:
+  ReadOnlyPolicyArn:
+    Value: !Ref ReadOnlyPolicy
+  ReadOnlyRoleArn:
+    Value: !GetAtt ReadOnlyRole.Arn

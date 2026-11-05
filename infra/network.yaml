@@ -1,0 +1,241 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Мережа kv-store для M1: VPC у 2 AZ, 2 публічні підмережі з маршрутом на IGW
+# і 2 приватні лише для внутрішнього доступу, без маршруту в інтернет.
+# Див. docs/adr/0003-cidr-scheme.md. Поле Description нижче я пишу англійською для консолі AWS.
+Description: >
+  kv-store M1 network: VPC in 2 AZs with 2 public subnets (route to IGW)
+  and 2 private subnets (internal only, no route to the internet).
+  See docs/adr/0003-cidr-scheme.md.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: kvstore
+  VpcCidr:
+    Type: String
+    Default: 10.20.0.0/16
+  PublicSubnetACidr:
+    Type: String
+    Default: 10.20.0.0/24
+  PublicSubnetBCidr:
+    Type: String
+    Default: 10.20.1.0/24
+  PrivateSubnetACidr:
+    Type: String
+    Default: 10.20.10.0/24
+  PrivateSubnetBCidr:
+    Type: String
+    Default: 10.20.11.0/24
+  # Порти застосунку з M2. Якщо оберу інші, міняю лише тут. Див. ADR-0005
+  CoordinatorPort:
+    Type: Number
+    Default: 8080
+  ShardPort:
+    Type: Number
+    Default: 9090
+
+Resources:
+  # ---------- VPC ----------
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-vpc" }
+        - { Key: project, Value: !Ref ProjectName }
+        - { Key: milestone, Value: m1 }
+
+  # ---------- Internet Gateway, двері в інтернет ----------
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-igw" }
+        - { Key: project, Value: !Ref ProjectName }
+
+  VpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  # ---------- Підмережі ----------
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PublicSubnetACidr
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-public-a" }
+        - { Key: project, Value: !Ref ProjectName }
+        - { Key: tier, Value: public }
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PublicSubnetBCidr
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-public-b" }
+        - { Key: project, Value: !Ref ProjectName }
+        - { Key: tier, Value: public }
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PrivateSubnetACidr
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-private-a" }
+        - { Key: project, Value: !Ref ProjectName }
+        - { Key: tier, Value: private }
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PrivateSubnetBCidr
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-private-b" }
+        - { Key: project, Value: !Ref ProjectName }
+        - { Key: tier, Value: private }
+
+  # ---------- Публічна маршрутизація: 0.0.0.0/0 -> IGW ----------
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-public-rt" }
+        - { Key: project, Value: !Ref ProjectName }
+
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VpcGatewayAttachment   # IGW має бути приєднаний до VPC раніше за маршрут
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  # ---------- Приватна маршрутизація: лише неявний маршрут local ----------
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-private-rt" }
+        - { Key: project, Value: !Ref ProjectName }
+
+  PrivateSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTable
+
+  # ---------- Security groups: інтернет -> edge -> coordinator -> шарди, див. ADR-0005 ----------
+  # GroupDescription пишу англійською: EC2 приймає там лише латиницю.
+  # Вихідний трафік не обмежую: за замовчуванням security group дозволяє весь вихід.
+  EdgeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-edge-sg"
+      GroupDescription: Load balancer. HTTP from the internet.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - Description: HTTP from anywhere
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-edge-sg" }
+        - { Key: project, Value: !Ref ProjectName }
+
+  CoordinatorSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-coordinator-sg"
+      GroupDescription: Coordinator. Only from the load balancer.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        # джерело - інша security group, а не діапазон IP
+        - Description: App port from edge-sg only
+          IpProtocol: tcp
+          FromPort: !Ref CoordinatorPort
+          ToPort: !Ref CoordinatorPort
+          SourceSecurityGroupId: !Ref EdgeSecurityGroup
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-coordinator-sg" }
+        - { Key: project, Value: !Ref ProjectName }
+
+  ShardSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-shard-sg"
+      GroupDescription: Shards. Only from the coordinator.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - Description: Shard port from coordinator-sg only
+          IpProtocol: tcp
+          FromPort: !Ref ShardPort
+          ToPort: !Ref ShardPort
+          SourceSecurityGroupId: !Ref CoordinatorSecurityGroup
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-shard-sg" }
+        - { Key: project, Value: !Ref ProjectName }
+
+# Виходи я експортую, щоб стеки застосунку з M2 імпортували їх через Fn::ImportValue, див. ADR-0002
+Outputs:
+  VpcId:
+    Value: !Ref Vpc
+    Export: { Name: !Sub "${AWS::StackName}-VpcId" }
+  VpcCidr:
+    Value: !Ref VpcCidr
+    Export: { Name: !Sub "${AWS::StackName}-VpcCidr" }
+  PublicSubnetIds:
+    Value: !Join [",", [!Ref PublicSubnetA, !Ref PublicSubnetB]]
+    Export: { Name: !Sub "${AWS::StackName}-PublicSubnetIds" }
+  PrivateSubnetIds:
+    Value: !Join [",", [!Ref PrivateSubnetA, !Ref PrivateSubnetB]]
+    Export: { Name: !Sub "${AWS::StackName}-PrivateSubnetIds" }
+  PublicRouteTableId:
+    Value: !Ref PublicRouteTable
+  PrivateRouteTableId:
+    Value: !Ref PrivateRouteTable
+  EdgeSecurityGroupId:
+    Value: !Ref EdgeSecurityGroup
+    Export: { Name: !Sub "${AWS::StackName}-EdgeSgId" }
+  CoordinatorSecurityGroupId:
+    Value: !Ref CoordinatorSecurityGroup
+    Export: { Name: !Sub "${AWS::StackName}-CoordinatorSgId" }
+  ShardSecurityGroupId:
+    Value: !Ref ShardSecurityGroup
+    Export: { Name: !Sub "${AWS::StackName}-ShardSgId" }

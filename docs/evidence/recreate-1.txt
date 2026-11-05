@@ -1,0 +1,39 @@
+== Видалення почато  Sun Nov  1 01:38:47 PM UTC 2026
+Чекаю, поки kv-network видалиться ...
+Видалено.
+== Видалення тривало 62 с
+== Деплой почато     Sun Nov  1 01:39:49 PM UTC 2026
+Шаблон валідний. Деплою kv-network ...
+
+Waiting for changeset to be created..
+Waiting for stack create/update to complete
+Successfully created/updated stack - kv-network
+--------------------------------------------------------------------------------------------------------------------
+|                                                  DescribeStacks                                                  |
++-----------------------------+------------------------------+-----------------------------------------------------+
+|         ExportName          |          OutputKey           |                     OutputValue                     |
++-----------------------------+------------------------------+-----------------------------------------------------+
+|  kv-network-PrivateSubnetIds|  PrivateSubnetIds            |  subnet-08d5660f2bfec6c8b,subnet-02a1237c6faf2e280  |
+|  kv-network-PublicSubnetIds |  PublicSubnetIds             |  subnet-07069efa9e7439b84,subnet-0601eaafa88797487  |
+|  kv-network-VpcId           |  VpcId                       |  vpc-03f9e82fb60cd133e                              |
+|  kv-network-VpcCidr         |  VpcCidr                     |  10.20.0.0/16                                       |
+|                             |  PrivateRouteTableId         |  rtb-0a3d51e27207b9c50                              |
+|  kv-network-EdgeSgId        |  EdgeSecurityGroupId         |  sg-0c2b41e4815118574                               |
+|  kv-network-CoordinatorSgId |  CoordinatorSecurityGroupId  |  sg-0c7404ca6a2480d47                               |
+|                             |  PublicRouteTableId          |  rtb-04cdf4f2d2984b237                              |
+|  kv-network-ShardSgId       |  ShardSecurityGroupId        |  sg-0664371c1faefcf52                               |
++-----------------------------+------------------------------+-----------------------------------------------------+
+== Деплой тривав 68 с
+== Перевірка
+VPC vpc-03f9e82fb60cd133e
+  OK   VPC CIDR 10.20.0.0/16
+  OK   subnets span 2 AZs
+  OK   public RT: 0.0.0.0/0 -> igw-01580e1043b7ed756
+  OK   private RT: no route to the internet
+  OK   subnet-08d5660f2bfec6c8b does not assign public IPs
+  OK   subnet-02a1237c6faf2e280 does not assign public IPs
+  OK   shard-sg: only from coordinator-sg
+  OK   coordinator-sg: only from edge-sg
+  OK   no security group opens port 22
+ALL CHECKS PASSED
+== РАЗОМ 144 с: видалення 62 с, деплой 68 с
