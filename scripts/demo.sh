@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Демо M2 на захисті. Адресу coordinator беру зі стека kv-app, перед кожним кроком чекаю Enter.
-#   bash scripts/demo.sh
+#   bash scripts/demo.sh                              в AWS
+#   URL=http://localhost:8080 bash scripts/demo.sh    локально через docker compose
 # Перед цим: bash scripts/deploy-all.sh з тієї ж мережі, звідки показую (доступ лише з моєї IP).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 REGION="${AWS_REGION:-us-east-1}"
-URL=$(aws cloudformation describe-stacks --stack-name kv-app --region "$REGION" \
-  --query "Stacks[0].Outputs[?OutputKey=='CoordinatorUrl'].OutputValue" --output text)
+# локально: URL=http://localhost:8080 bash scripts/demo.sh (після docker compose up)
+URL="${URL:-$(aws cloudformation describe-stacks --stack-name kv-app --region "$REGION" \
+  --query "Stacks[0].Outputs[?OutputKey=='CoordinatorUrl'].OutputValue" --output text)}"
 T="orders$(date +%H%M%S)"   # нова таблиця щоразу, щоб повторний запуск не давав 409
 
 step() {
