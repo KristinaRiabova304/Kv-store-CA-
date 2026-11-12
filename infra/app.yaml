@@ -1,0 +1,159 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Застосунок M2: coordinator у публічній підмережі і 2 шарди в приватних.
+# Розміщення - docs/adr/0009-m2-placement.md, доставка коду - docs/adr/0010-delivery-and-cicd.md.
+# Нову версію викочує зміна ReleaseVersion: вона змінює user data, CloudFormation
+# зупиняє й запускає сервери, а systemd при старті завантажує збірку цієї версії.
+Description: >
+  kv-store M2 application: 1 coordinator (public subnet) and 2 shards (private
+  subnets) on t3.micro. Code comes from the artifacts bucket via the S3 gateway endpoint.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: kvstore
+  NetworkStack:
+    Type: String
+    Default: kv-network
+  ArtifactsStack:
+    Type: String
+    Default: kv-artifacts
+  ReleaseVersion:
+    Type: String
+    Description: Git commit whose build is in s3://<bucket>/releases/<commit>/
+    AllowedPattern: "^[0-9a-f]{7,40}$"
+  AdminCidr:
+    Type: String
+    Description: Who may call the coordinator on 8080, e.g. my IP as 1.2.3.4/32
+    AllowedPattern: "^([0-9]{1,3}\\.){3}[0-9]{1,3}/(2[4-9]|3[0-2])$"
+    ConstraintDescription: an IPv4 CIDR no wider than /24, never 0.0.0.0/0
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues: [t3.micro, t3.small]
+  # Закріплений Amazon Linux 2023 для us-east-1 станом на 2026-11-12 (AI-рев'ю M2, пункт 5).
+  # Не беру «останній» з SSM: вихід нового образу перетворив би звичайний деплой на заміну всіх серверів.
+  # Оновлюю свідомо: aws ssm get-parameter --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-09bf9dfeeb1e9adbc
+  CoordinatorPort:
+    Type: Number
+    Default: 8080
+  # окремий порт для реєстрації шардів, відкритий лише для shard-sg (AI-рев'ю M2, пункт 4)
+  CoordinatorInternalPort:
+    Type: Number
+    Default: 8081
+  ExpectedShards:
+    Type: Number
+    Default: 2
+
+Resources:
+  # ---------- Нові правила для coordinator-sg, ADR-0009 ----------
+  # Групи живуть у kv-network, а правила, які часто змінюються, - тут.
+  CoordinatorFromShards:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Shard registration and heartbeats, internal port only
+      GroupId: { "Fn::ImportValue": !Sub "${NetworkStack}-CoordinatorSgId" }
+      SourceSecurityGroupId: { "Fn::ImportValue": !Sub "${NetworkStack}-ShardSgId" }
+      IpProtocol: tcp
+      FromPort: !Ref CoordinatorInternalPort
+      ToPort: !Ref CoordinatorInternalPort
+
+  CoordinatorFromAdmin:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: Clients and demo, limited to AdminCidr
+      GroupId: { "Fn::ImportValue": !Sub "${NetworkStack}-CoordinatorSgId" }
+      CidrIp: !Ref AdminCidr
+      IpProtocol: tcp
+      FromPort: !Ref CoordinatorPort
+      ToPort: !Ref CoordinatorPort
+
+  # ---------- Сервери ----------
+  Coordinator:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      SubnetId: { "Fn::ImportValue": !Sub "${NetworkStack}-PublicSubnetAId" }
+      SecurityGroupIds:
+        - { "Fn::ImportValue": !Sub "${NetworkStack}-CoordinatorSgId" }
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash
+              # KV_VERSION=${ReleaseVersion}
+              set -euo pipefail
+              curl -sSf --retry 20 --retry-all-errors -o /usr/local/bin/kvstore-bootstrap \
+                "https://${Bucket}.s3.${AWS::Region}.amazonaws.com/releases/${ReleaseVersion}/bootstrap.sh"
+              bash /usr/local/bin/kvstore-bootstrap coordinator "${Bucket}" "${AWS::Region}" "${ExpectedShards}"
+            - Bucket: { "Fn::ImportValue": !Sub "${ArtifactsStack}-BucketName" }
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-coordinator" }
+        - { Key: project, Value: !Ref ProjectName }
+        - { Key: milestone, Value: m2 }
+        - { Key: release, Value: !Ref ReleaseVersion }
+
+  Shard1:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      SubnetId: { "Fn::ImportValue": !Sub "${NetworkStack}-PrivateSubnetAId" }
+      SecurityGroupIds:
+        - { "Fn::ImportValue": !Sub "${NetworkStack}-ShardSgId" }
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash
+              # KV_VERSION=${ReleaseVersion}
+              set -euo pipefail
+              curl -sSf --retry 20 --retry-all-errors -o /usr/local/bin/kvstore-bootstrap \
+                "https://${Bucket}.s3.${AWS::Region}.amazonaws.com/releases/${ReleaseVersion}/bootstrap.sh"
+              bash /usr/local/bin/kvstore-bootstrap shard "${Bucket}" "${AWS::Region}" shard-1 "http://${Coordinator.PrivateIp}:${CoordinatorInternalPort}"
+            - Bucket: { "Fn::ImportValue": !Sub "${ArtifactsStack}-BucketName" }
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-shard-1" }
+        - { Key: project, Value: !Ref ProjectName }
+        - { Key: milestone, Value: m2 }
+        - { Key: release, Value: !Ref ReleaseVersion }
+
+  # другий шард в іншій зоні
+  Shard2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      SubnetId: { "Fn::ImportValue": !Sub "${NetworkStack}-PrivateSubnetBId" }
+      SecurityGroupIds:
+        - { "Fn::ImportValue": !Sub "${NetworkStack}-ShardSgId" }
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash
+              # KV_VERSION=${ReleaseVersion}
+              set -euo pipefail
+              curl -sSf --retry 20 --retry-all-errors -o /usr/local/bin/kvstore-bootstrap \
+                "https://${Bucket}.s3.${AWS::Region}.amazonaws.com/releases/${ReleaseVersion}/bootstrap.sh"
+              bash /usr/local/bin/kvstore-bootstrap shard "${Bucket}" "${AWS::Region}" shard-2 "http://${Coordinator.PrivateIp}:${CoordinatorInternalPort}"
+            - Bucket: { "Fn::ImportValue": !Sub "${ArtifactsStack}-BucketName" }
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-shard-2" }
+        - { Key: project, Value: !Ref ProjectName }
+        - { Key: milestone, Value: m2 }
+        - { Key: release, Value: !Ref ReleaseVersion }
+
+Outputs:
+  CoordinatorPublicIp:
+    Description: Changes after every stop/start, read it again after a deploy
+    Value: !GetAtt Coordinator.PublicIp
+  CoordinatorUrl:
+    Value: !Sub "http://${Coordinator.PublicIp}:${CoordinatorPort}"
+  CoordinatorPrivateIp:
+    Value: !GetAtt Coordinator.PrivateIp
+  ReleaseVersion:
+    Value: !Ref ReleaseVersion

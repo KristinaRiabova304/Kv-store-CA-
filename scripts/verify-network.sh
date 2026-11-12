@@ -29,6 +29,13 @@ PRIV_DEF=$(aws ec2 describe-route-tables --route-table-ids "$PRIV_RT" --region "
   --query "RouteTables[0].Routes[?DestinationCidrBlock=='0.0.0.0/0']" --output text)
 [ -z "$PRIV_DEF" ] && ok "private RT: no route to the internet" || bad "private RT has a default route"
 
+# з M2 у приватній таблиці дозволені лише local і S3 gateway endpoint, див. ADR-0010
+PRIV_TARGETS=$(aws ec2 describe-route-tables --route-table-ids "$PRIV_RT" --region "$REGION" \
+  --query 'RouteTables[0].Routes[].GatewayId' --output text | tr '\t' '\n' | sort -u | tr '\n' ' ')
+OTHER=$(echo "$PRIV_TARGETS" | tr ' ' '\n' | grep -v -e '^local$' -e '^vpce-' -e '^$')
+[ -z "$OTHER" ] && ok "private RT targets: $PRIV_TARGETS" || bad "private RT has other targets: $OTHER"
+[[ "$PRIV_TARGETS" == *vpce-* ]] && ok "private RT has the S3 endpoint route" || bad "private RT has no S3 endpoint route"
+
 # кожна підмережа має бути прив'язана саме до своєї таблиці маршрутів
 assoc() { aws ec2 describe-route-tables --route-table-ids "$1" --region "$REGION" \
   --query 'RouteTables[0].Associations[].SubnetId' --output text; }
@@ -59,7 +66,12 @@ only() { local got; got=$(rules "$2")
   [ "$got" = "$3" ] && ok "$1: only $3" || bad "$1 rules: $got"; }
 
 only edge-sg "$EDGE_SG" "tcp 80 80 0.0.0.0/0"
-only coordinator-sg "$COORD_SG" "tcp $COORD_PORT $COORD_PORT $EDGE_SG"
+# стек kv-app додає в coordinator-sg свої правила (ADR-0009), тоді їх перевіряє verify-app.sh
+if aws cloudformation describe-stacks --stack-name kv-app --region "$REGION" >/dev/null 2>&1; then
+  echo "  SKIP coordinator-sg: kv-app adds rules, see scripts/verify-app.sh"
+else
+  only coordinator-sg "$COORD_SG" "tcp $COORD_PORT $COORD_PORT $EDGE_SG"
+fi
 only shard-sg "$SHARD_SG" "tcp $SHARD_PORT $SHARD_PORT $COORD_SG"
 
 # порт 22 може бути відкритий і діапазоном, і правилом на весь трафік

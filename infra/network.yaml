@@ -160,6 +160,18 @@ Resources:
       SubnetId: !Ref PrivateSubnetB
       RouteTableId: !Ref PrivateRouteTable
 
+  # ---------- S3 gateway endpoint, M2: шарди забирають збірку з S3 без інтернету, див. ADR-0010 ----------
+  # Додає в обидві таблиці маршрут лише до адрес S3 цього регіону. Безкоштовний.
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref PublicRouteTable
+        - !Ref PrivateRouteTable
+
   # ---------- Security groups: інтернет -> edge -> coordinator -> шарди, див. ADR-0005 ----------
   # GroupDescription пишу англійською: EC2 приймає там лише латиницю.
   # Вихідний трафік не обмежую: за замовчуванням security group дозволяє весь вихід.
@@ -239,3 +251,16 @@ Outputs:
   ShardSecurityGroupId:
     Value: !Ref ShardSecurityGroup
     Export: { Name: !Sub "${AWS::StackName}-ShardSgId" }
+  # окремо кожна підмережа: сервер ставиться в одну конкретну, а не в список
+  PublicSubnetAId:
+    Value: !Ref PublicSubnetA
+    Export: { Name: !Sub "${AWS::StackName}-PublicSubnetAId" }
+  PrivateSubnetAId:
+    Value: !Ref PrivateSubnetA
+    Export: { Name: !Sub "${AWS::StackName}-PrivateSubnetAId" }
+  PrivateSubnetBId:
+    Value: !Ref PrivateSubnetB
+    Export: { Name: !Sub "${AWS::StackName}-PrivateSubnetBId" }
+  S3EndpointId:
+    Value: !Ref S3GatewayEndpoint
+    Export: { Name: !Sub "${AWS::StackName}-S3EndpointId" }

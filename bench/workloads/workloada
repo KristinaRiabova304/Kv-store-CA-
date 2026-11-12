@@ -1,0 +1,25 @@
+# YCSB workload A: багато оновлень, 50% читань і 50% оновлень.
+# Приклад: сховище сесій, де кожна дія користувача оновлює його запис.
+# Параметри як в оригінальному YCSB (github.com/brianfrankcooper/YCSB/workloads/workloada),
+# крім кількостей записів і операцій, які я задаю в scripts/bench.sh.
+workload=core
+table=usertable
+
+# запис ~1 КБ: 10 полів по 100 байт
+fieldcount=10
+fieldlength=100
+
+readallfields=true
+# мій PUT замінює запис цілком, тому update пише всі поля, див. bench/ycsb/kvdb.go
+writeallfields=true
+
+readproportion=0.5
+updateproportion=0.5
+scanproportion=0
+insertproportion=0
+
+# zipfian: невелика частина ключів отримує більшість запитів, як у реальних системах
+requestdistribution=zipfian
+
+# гістограма, щоб мати p99 і p99.9
+measurementtype=histogram

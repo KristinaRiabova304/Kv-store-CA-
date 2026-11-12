@@ -1,0 +1,26 @@
+Using request distribution 'zipfian' a keyrange of [0 100000]
+***************** properties *****************
+"threadcount"="16"
+"operationcount"="200000"
+"readproportion"="0.5"
+"fieldlength"="100"
+"readallfields"="true"
+"updateproportion"="0.5"
+"workload"="core"
+"dotransactions"="false"
+"command"="load"
+"scanproportion"="0"
+"fieldcount"="10"
+"requestdistribution"="zipfian"
+"kvstore.url"="http://10.20.0.182:8080"
+"table"="usertable"
+"recordcount"="100000"
+"measurementtype"="histogram"
+"writeallfields"="true"
+"insertproportion"="0"
+**********************************************
+INSERT - Takes(s): 10.0, Count: 69548, OPS: 6955.8, Avg(us): 2269, Min(us): 966, Max(us): 9999, 50th(us): 2129, 90th(us): 3093, 95th(us): 3435, 99th(us): 4331, 99.9th(us): 6575, 99.99th(us): 8271
+TOTAL  - Takes(s): 10.0, Count: 69548, OPS: 6956.0, Avg(us): 2269, Min(us): 966, Max(us): 9999, 50th(us): 2129, 90th(us): 3093, 95th(us): 3435, 99th(us): 4331, 99.9th(us): 6575, 99.99th(us): 8271
+Run finished, takes 14.281310575s
+INSERT - Takes(s): 14.3, Count: 100000, OPS: 7003.0, Avg(us): 2247, Min(us): 966, Max(us): 10831, 50th(us): 2109, 90th(us): 3055, 95th(us): 3397, 99th(us): 4279, 99.9th(us): 6703, 99.99th(us): 8751
+TOTAL  - Takes(s): 14.3, Count: 100000, OPS: 7003.1, Avg(us): 2247, Min(us): 966, Max(us): 10831, 50th(us): 2109, 90th(us): 3055, 95th(us): 3397, 99th(us): 4279, 99.9th(us): 6703, 99.99th(us): 8751

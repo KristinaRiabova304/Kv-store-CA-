@@ -1,0 +1,11 @@
+Coordinator http://54.208.43.214:8080, очікувана версія 96a7bd4a4407
+  OK   2 shards registered
+  OK   coordinator runs 96a7bd4a4407
+  OK   table verify1794499502 created
+  OK   CREATE
+  OK   EXISTS
+  OK   READ
+  OK   DELETE
+  OK   gone after DELETE
+  OK   coordinator-sg: edge-sg, shard-sg, 31.43.151.148/32 on 8080 only
+ALL CHECKS PASSED

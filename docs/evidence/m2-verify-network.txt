@@ -1,0 +1,18 @@
+VPC vpc-0a6362ad374d64bd1
+  OK   VPC CIDR 10.20.0.0/16
+  OK   subnets span 2 AZs
+  OK   public RT: 0.0.0.0/0 -> igw-059a682b95b2920c5
+  OK   private RT: no route to the internet
+  OK   private RT targets: local vpce-0bb65a37716961465 
+  OK   private RT has the S3 endpoint route
+  OK   subnet-0812e1e1d045e037b uses the public RT
+  OK   subnet-00bf8dc99c6fa4890 uses the public RT
+  OK   subnet-0b004d3085f84decb uses the private RT
+  OK   subnet-03c9d005b7215894f uses the private RT
+  OK   subnet-0b004d3085f84decb does not assign public IPs
+  OK   subnet-03c9d005b7215894f does not assign public IPs
+  OK   edge-sg: only tcp 80 80 0.0.0.0/0
+  SKIP coordinator-sg: kv-app adds rules, see scripts/verify-app.sh
+  OK   shard-sg: only tcp 9090 9090 sg-09f63908c01422b5a
+  OK   no security group opens port 22
+ALL CHECKS PASSED

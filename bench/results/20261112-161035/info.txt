@@ -1,0 +1,10 @@
+run:            20261112-161035
+started:        2026-11-12T16:11:12Z
+release:        96a7bd4a4407
+client:         t3.micro in us-east-1a
+coordinator:    http://10.20.0.182:8080
+recordcount:    100000
+operationcount: 200000
+threads:        16
+shards:         {"shards":[{"id":"shard-1","addr":"10.20.10.69:9090"},{"id":"shard-2","addr":"10.20.11.43:9090"}]}
+finished:       2026-11-12T16:12:07Z

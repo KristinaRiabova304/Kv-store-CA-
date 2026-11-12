@@ -1,0 +1,93 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Клієнт YCSB, M2. Живе лише під час бенчмарку: scripts/bench.sh створює стек, чекає
+# на результати в S3 і видаляє його. Сервер у публічній підмережі тієї ж зони, що й coordinator,
+# щоб у вимір не потрапляла затримка між зонами. Див. docs/adr/0009-m2-placement.md, пункт 3.
+Description: >
+  kv-store M2 YCSB client. Runs the benchmark from user data, uploads results to
+  the artifacts bucket through the S3 gateway endpoint, and is deleted afterwards.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: kvstore
+  NetworkStack:
+    Type: String
+    Default: kv-network
+  ArtifactsStack:
+    Type: String
+    Default: kv-artifacts
+  ReleaseVersion:
+    Type: String
+    AllowedPattern: "^[0-9a-f]{7,40}$"
+  CoordinatorUrl:
+    Type: String
+    Description: Private URL of the coordinator, e.g. http://10.20.0.182:8080
+  RunId:
+    Type: String
+    AllowedPattern: "^[0-9a-zA-Z-]{1,64}$"
+  RecordCount:
+    Type: Number
+    Default: 100000
+  OperationCount:
+    Type: Number
+    Default: 200000
+  Threads:
+    Type: Number
+    Default: 16
+  Repeats:
+    Type: Number
+    Default: 3
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues: [t3.micro, t3.small]
+  AmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+  CoordinatorPort:
+    Type: Number
+    Default: 8080
+
+Resources:
+  # без вхідних правил: клієнт лише сам звертається до coordinator і S3
+  BenchSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-bench-sg"
+      GroupDescription: YCSB client. No inbound traffic.
+      VpcId: { "Fn::ImportValue": !Sub "${NetworkStack}-VpcId" }
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-bench-sg" }
+        - { Key: project, Value: !Ref ProjectName }
+
+  CoordinatorFromBench:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: YCSB client
+      GroupId: { "Fn::ImportValue": !Sub "${NetworkStack}-CoordinatorSgId" }
+      SourceSecurityGroupId: !Ref BenchSecurityGroup
+      IpProtocol: tcp
+      FromPort: !Ref CoordinatorPort
+      ToPort: !Ref CoordinatorPort
+
+  BenchClient:
+    Type: AWS::EC2::Instance
+    DependsOn: CoordinatorFromBench   # правило має існувати раніше, ніж клієнт почне слати запити
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      SubnetId: { "Fn::ImportValue": !Sub "${NetworkStack}-PublicSubnetAId" }
+      SecurityGroupIds: [!Ref BenchSecurityGroup]
+      UserData:
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash
+              B="https://${Bucket}.s3.${AWS::Region}.amazonaws.com"
+              curl -sSf --retry 20 --retry-all-errors -o /usr/local/bin/run-bench "$B/releases/${ReleaseVersion}/bench/run-bench.sh"
+              bash /usr/local/bin/run-bench "$B" "${ReleaseVersion}" "${CoordinatorUrl}" "${RunId}" "${RecordCount}" "${OperationCount}" "${Threads}" "${Repeats}"
+            - Bucket: { "Fn::ImportValue": !Sub "${ArtifactsStack}-BucketName" }
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-bench" }
+        - { Key: project, Value: !Ref ProjectName }
+        - { Key: milestone, Value: m2 }

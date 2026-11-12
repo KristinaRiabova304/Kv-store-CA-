@@ -1,0 +1,81 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Бакет для збірок застосунку, M2. CI кладе сюди бінарники, сервери забирають їх через
+# S3 gateway endpoint без ролі й ключів. Див. docs/adr/0010-delivery-and-cicd.md.
+Description: >
+  kv-store M2 artifacts: S3 bucket with release binaries. Servers download them
+  anonymously, but only through the VPC's S3 gateway endpoint.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: kvstore
+  NetworkStack:
+    Type: String
+    Default: kv-network
+
+Resources:
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      # ім'я бакета має бути унікальним у всьому AWS, тому додаю номер акаунта
+      BucketName: !Sub "${ProjectName}-artifacts-${AWS::AccountId}"
+      # Block Public Access лишаю увімкненим: політика нижче з умовою aws:SourceVpce
+      # для AWS не вважається публічною
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-old-releases
+            Status: Enabled
+            Prefix: releases/
+            ExpirationInDays: 30
+      Tags:
+        - { Key: project, Value: !Ref ProjectName }
+        - { Key: milestone, Value: m2 }
+
+  ArtifactsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactsBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # читати збірки може будь-хто, але лише якщо запит прийшов через мій endpoint,
+          # тобто з моєї VPC. Ззовні VPC ця умова ніколи не виконується.
+          - Sid: ReadReleasesFromMyVpcOnly
+            Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "${ArtifactsBucket.Arn}/releases/*"
+            Condition:
+              StringEquals:
+                aws:SourceVpce: { "Fn::ImportValue": !Sub "${NetworkStack}-S3EndpointId" }
+          # клієнт YCSB кладе результати бенчмарку, теж лише зсередини VPC
+          - Sid: WriteBenchResultsFromMyVpcOnly
+            Effect: Allow
+            Principal: "*"
+            Action: s3:PutObject
+            Resource: !Sub "${ArtifactsBucket.Arn}/bench-results/*"
+            Condition:
+              StringEquals:
+                aws:SourceVpce: { "Fn::ImportValue": !Sub "${NetworkStack}-S3EndpointId" }
+          - Sid: DenyPlainHttp
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt ArtifactsBucket.Arn
+              - !Sub "${ArtifactsBucket.Arn}/*"
+            Condition:
+              Bool: { aws:SecureTransport: "false" }
+
+Outputs:
+  BucketName:
+    Value: !Ref ArtifactsBucket
+    Export: { Name: !Sub "${AWS::StackName}-BucketName" }

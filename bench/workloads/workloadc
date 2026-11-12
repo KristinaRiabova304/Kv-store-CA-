@@ -1,0 +1,20 @@
+# YCSB workload C: лише читання, 100% read.
+# Приклад: кеш профілів користувачів, які створюються десь в іншому місці.
+# Параметри як в оригінальному YCSB, крім кількостей, які задає scripts/bench.sh.
+workload=core
+table=usertable
+
+fieldcount=10
+fieldlength=100
+
+readallfields=true
+writeallfields=true
+
+readproportion=1
+updateproportion=0
+scanproportion=0
+insertproportion=0
+
+requestdistribution=zipfian
+
+measurementtype=histogram

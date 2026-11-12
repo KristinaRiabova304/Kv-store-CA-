@@ -1,0 +1,66 @@
+# CI/CD, див. docs/adr/0010-delivery-and-cicd.md.
+# Actions закріплені за SHA коміту, а не за тегом: тег можна пересунути, і чужий код отримав би ключі сесії (AI-рев'ю M2, пункт 6).
+# Кожен push і PR: перевірка шаблонів, тести, збірка.
+# Push у main: ще й деплой інфраструктури і застосунку, якщо ключі сесії sandbox дійсні.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# два деплої одночасно зламали б один одного
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: build
+        run: GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o dist/ ./cmd/...
+      - name: lint CloudFormation templates
+        run: |
+          pip install --quiet cfn-lint==1.60.0
+          cfn-lint infra/*.yaml
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      ADMIN_CIDR: ${{ vars.ADMIN_CIDR }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      - name: check sandbox session
+        run: |
+          aws sts get-caller-identity --query Arn --output text || {
+            echo "::error::Ключі сесії sandbox спливли. Запусти лабу, виконай scripts/set-ci-creds.sh і перезапусти цей workflow."
+            exit 1
+          }
+      - name: deploy network, artifacts, release, app
+        run: bash scripts/deploy-all.sh
+      - name: print coordinator URL
+        run: |
+          aws cloudformation describe-stacks --stack-name kv-app \
+            --query "Stacks[0].Outputs[?OutputKey=='CoordinatorUrl'].OutputValue" --output text
