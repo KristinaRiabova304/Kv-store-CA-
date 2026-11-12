@@ -1,8 +1,5 @@
 # Специфікація IAM
 
-Тут я записую, як мають працювати права доступу. Ключові слова Requirement, SHALL, WHEN, THEN
-лишаю англійською, бо це формат OpenSpec.
-
 ## ADDED Requirements
 
 ### Requirement: Політика тільки на перегляд

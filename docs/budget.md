@@ -1,8 +1,7 @@
 # Місячний бюджет для Milestone 2 з 2 шардами
 
 Регіон `us-east-1`, ціни on-demand для Linux, 1 місяць = 730 год, так рахує AWS.
-Перевірено 2026-10-29. Перед захистом я ще раз перевіряю ціни в AWS Pricing Calculator
-https://calculator.aws і вставляю сюди посилання на свій розрахунок.
+Ціни звірено 2026-11-05 з офіційним AWS Price List (файли AmazonEC2, AmazonVPC і AWSELB для `us-east-1`).
 
 ## Яку архітектуру M2 я припускаю
 - 1 coordinator і 2 вузли-шарди = **3 × EC2 `t3.micro`**, у кожного 2 vCPU і 1 GiB пам'яті
@@ -16,9 +15,9 @@ https://calculator.aws і вставляю сюди посилання на св
 |---|---|---|
 | EC2 t3.micro | $0.0104 за год | прайс AWS on-demand, us-east-1 |
 | Публічна IPv4-адреса | $0.005 за год, навіть якщо не використовується | AWS, з лютого 2024 |
-| EBS gp3 | $0.08 за ГБ на місяць | прайс AWS EBS, перевірити |
-| NAT gateway | $0.045 за год + $0.045 за ГБ трафіку | прайс AWS VPC, перевірити |
-| Application Load Balancer | $0.0225 за год + LCU | прайс AWS ELB, перевірити |
+| EBS gp3 | $0.08 за ГБ на місяць | AWS Price List, AmazonEC2 |
+| NAT gateway | $0.045 за год + $0.045 за ГБ трафіку | AWS Price List, AmazonEC2 |
+| Application Load Balancer | $0.0225 за год + $0.008 за LCU-год | AWS Price List, AWSELB |
 | VPC, підмережі, IGW, таблиці маршрутів, security groups | безкоштовно | |
 
 ## Розрахунок
