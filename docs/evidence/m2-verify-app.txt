@@ -1,11 +1,12 @@
-Coordinator http://54.208.43.214:8080, очікувана версія 96a7bd4a4407
+Coordinator http://52.91.243.145:8080, очікувана версія 1872ce8d2649
   OK   2 shards registered
-  OK   coordinator runs 96a7bd4a4407
-  OK   table verify1794499502 created
+  OK   coordinator runs 1872ce8d2649
+  OK   table verify1794506693 created
   OK   CREATE
   OK   EXISTS
   OK   READ
   OK   DELETE
   OK   gone after DELETE
-  OK   coordinator-sg: edge-sg, shard-sg, 31.43.151.148/32 on 8080 only
+  OK   coordinator-sg: 8080 edge-sg and 31.43.151.148/32, 8081 shard-sg only
+  OK   shard registration refused on 8080
 ALL CHECKS PASSED

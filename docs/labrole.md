@@ -45,7 +45,8 @@
 | Регіони | `us-east-2`, `us-west-1`, `eu-west-1`, `eu-central-1` | **Заборонено** | явний Deny у **SCP** організації AWS Academy | `describe-vpcs` у кожному регіоні |
 | Сервіси | S3, DynamoDB, Lambda, CloudFormation: створення | Дозволено | | симулятор |
 | IAM | `iam:CreatePolicy`, `CreateRole`, `CreateUser` | **Заборонено** | неявна відмова: жодна політика не дозволяє | реальні спроби |
-| IAM | `iam:PassRole` без конкретної ролі і для `lambda-run-role`, `myS3Role`, `EMR_EC2_DefaultRole` | Заборонено за симулятором | неявна відмова | симулятор; перевіряю dry-run, `scripts/check-passrole.sh` |
+| IAM | `iam:PassRole` для `myS3Role` | **Дозволено**, хоча симулятор казав «заборонено» | | dry-run `run-instances`, `scripts/check-passrole.sh`, 2026-11-12 |
+| IAM | `iam:PassRole` для `EMR_EC2_DefaultRole` | **Заборонено** | неявна відмова | dry-run, `scripts/check-passrole.sh` |
 | IAM | `iam:ListRoles`, `ListAttachedRolePolicies` | Дозволено | | спрацювали, це дає `ReadOnlyAccess` |
 | IAM | `iam:GetRole` і `iam:GetRolePolicy` на саму `voclabs` | **Заборонено** | явний Deny в identity-based політиці | реальні спроби |
 | Організації | `organizations:CreateAccount` | **Заборонено** | явний Deny | симулятор |
@@ -67,9 +68,13 @@
   `myS3Role` і `EMR_EC2_DefaultRole`. Але симулятор каже, що `iam:PassRole` на них неявно заборонено.
   Симулятор не бачить усього, тому я перевіряю це вже зараз: `scripts/check-passrole.sh` робить dry-run
   з обома профілями і зберігає вивід у `docs/evidence/passrole-dry-run.txt`.
-  **Результат: ще не запускала.**
-  Якщо не вийде, сервери працюватимуть без ролі, і доступ до AWS API з них доведеться будувати інакше:
-  це зачепить логи в S3 у M3 і метрики CloudWatch у M4.
+  **Результат, 2026-11-12:** з `myS3Role` dry-run відповів `DryRunOperation`, тобто запит дозволено.
+  З `EMR_EC2_DefaultRole` відповідь `UnauthorizedOperation ... not authorized to perform: iam:PassRole`.
+  Отже, **симулятор помилявся щодо `myS3Role`**: він не бачить частини правил sandbox,
+  а реальна спроба з `--dry-run` нічого не створює і показує правду. Для захисту це головний урок:
+  симулятор - лише підказка, остаточна перевірка - реальний виклик.
+  Для M2 це нічого не змінює: сервери отримують код через S3 endpoint без ролі, ADR-0010.
+  У M3 і M4 `myS3Role` стане в пригоді для логів у S3 і метрик CloudWatch, але спершу треба подивитися, які в неї права.
 - Лише малі сервери → проєктую під `t3.micro` і подібні.
 - Лише `us-east-1` і `us-west-2` → один регіон, `us-east-1`.
 - Ключі спливають разом із сесією → жодних довгих пайплайнів на ключах sandbox.

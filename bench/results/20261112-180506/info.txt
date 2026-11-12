@@ -1,0 +1,11 @@
+run:            20261112-180506
+started:        2026-11-12T18:05:58Z
+release:        1872ce8d2649
+client:         t3.micro in us-east-1a
+coordinator:    http://10.20.0.38:8080
+recordcount:    100000
+operationcount: 200000
+threads:        16
+repeats:        3
+shards:         {"shards":[{"id":"shard-1","addr":"10.20.10.24:9090","bootId":"df7e1f4567b2f308","lastSeen":"2026-11-12T18:05:49.129616898Z","restarts":0},{"id":"shard-2","addr":"10.20.11.208:9090","bootId":"fbcbb72eb8652512","lastSeen":"2026-11-12T18:05:56.059174475Z","restarts":0}]}
+finished:       2026-11-12T18:08:26Z

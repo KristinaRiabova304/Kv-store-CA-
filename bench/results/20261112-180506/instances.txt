@@ -1,0 +1,4 @@
+coordinator i-08b39079b34a75c20
+shard-1 i-0473c80480704acfb
+shard-2 i-0c2e3a0df53df04f4
+client i-0d5dde6a657e904c8

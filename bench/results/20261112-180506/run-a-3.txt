@@ -1,0 +1,31 @@
+Using request distribution 'zipfian' a keyrange of [0 100000]
+***************** properties *****************
+"threadcount"="16"
+"requestdistribution"="zipfian"
+"kvstore.url"="http://10.20.0.38:8080"
+"operationcount"="200000"
+"command"="run"
+"writeallfields"="true"
+"table"="usertable"
+"fieldcount"="10"
+"insertproportion"="0"
+"recordcount"="100000"
+"dotransactions"="true"
+"measurementtype"="histogram"
+"workload"="core"
+"fieldlength"="100"
+"updateproportion"="0.5"
+"readallfields"="true"
+"scanproportion"="0"
+"readproportion"="0.5"
+**********************************************
+READ   - Takes(s): 10.0, Count: 41759, OPS: 4176.2, Avg(us): 1800, Min(us): 490, Max(us): 211455, 50th(us): 1617, 90th(us): 2723, 95th(us): 3211, 99th(us): 4839, 99.9th(us): 9647, 99.99th(us): 12599
+TOTAL  - Takes(s): 10.0, Count: 83390, OPS: 8339.9, Avg(us): 1900, Min(us): 490, Max(us): 211455, 50th(us): 1722, 90th(us): 2843, 95th(us): 3353, 99th(us): 5075, 99.9th(us): 10231, 99.99th(us): 13831
+UPDATE - Takes(s): 10.0, Count: 41631, OPS: 4164.1, Avg(us): 2000, Min(us): 543, Max(us): 15407, 50th(us): 1818, 90th(us): 2961, 95th(us): 3473, 99th(us): 5311, 99.9th(us): 10591, 99.99th(us): 14071
+READ   - Takes(s): 20.0, Count: 82094, OPS: 4103.8, Avg(us): 1828, Min(us): 490, Max(us): 211455, 50th(us): 1621, 90th(us): 2737, 95th(us): 3259, 99th(us): 5459, 99.9th(us): 12839, 99.99th(us): 33759
+TOTAL  - Takes(s): 20.0, Count: 163708, OPS: 8184.6, Avg(us): 1935, Min(us): 490, Max(us): 218367, 50th(us): 1726, 90th(us): 2875, 95th(us): 3413, 99th(us): 5787, 99.9th(us): 13183, 99.99th(us): 33759
+UPDATE - Takes(s): 20.0, Count: 81614, OPS: 4080.9, Avg(us): 2043, Min(us): 543, Max(us): 218367, 50th(us): 1823, 90th(us): 2999, 95th(us): 3545, 99th(us): 6143, 99.9th(us): 13607, 99.99th(us): 33759
+Run finished, takes 26.518775876s
+READ   - Takes(s): 26.5, Count: 100186, OPS: 3778.2, Avg(us): 1973, Min(us): 490, Max(us): 211455, 50th(us): 1641, 90th(us): 2869, 95th(us): 3537, 99th(us): 8463, 99.9th(us): 28719, 99.99th(us): 46239
+TOTAL  - Takes(s): 26.5, Count: 200000, OPS: 7542.2, Avg(us): 2086, Min(us): 490, Max(us): 218367, 50th(us): 1745, 90th(us): 3017, 95th(us): 3707, 99th(us): 9103, 99.9th(us): 28447, 99.99th(us): 46239
+UPDATE - Takes(s): 26.5, Count: 99814, OPS: 3764.2, Avg(us): 2201, Min(us): 528, Max(us): 218367, 50th(us): 1841, 90th(us): 3149, 95th(us): 3877, 99th(us): 9703, 99.9th(us): 27807, 99.99th(us): 45727

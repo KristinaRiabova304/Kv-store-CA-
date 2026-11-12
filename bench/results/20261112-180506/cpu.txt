@@ -1,0 +1,13 @@
+Прогін 20261112-180506, 2026-11-12T18:05:58Z - 2026-11-12T18:08:26Z, вікно CloudWatch 2026-11-12T18:00:58Z - 2026-11-12T18:13:26Z, точки по 5 хв (UTC)
+coordinator (i-08b39079b34a75c20)
+  CPUUtilization max, %: 18:00 0.0; 18:05 86.7; 18:10 0.3; 
+  CPUCreditBalance min:   18:05 0.0; 18:10 0.0; 
+shard-1 (i-0473c80480704acfb)
+  CPUUtilization max, %: 18:00 0.0; 18:05 42.5; 18:10 0.3; 
+  CPUCreditBalance min:   18:05 0.1; 18:10 0.0; 
+shard-2 (i-0c2e3a0df53df04f4)
+  CPUUtilization max, %: 18:00 9.2; 18:05 42.3; 18:10 0.3; 
+  CPUCreditBalance min:   18:05 0.1; 18:10 0.0; 
+client (i-0d5dde6a657e904c8)
+  CPUUtilization max, %: 18:05 62.5; 
+  CPUCreditBalance min:   

@@ -1,0 +1,8 @@
+$ aws ec2 run-instances --dry-run --instance-type t3.micro --iam-instance-profile Name=myS3Role
+
+An error occurred (DryRunOperation) when calling the RunInstances operation: Request would have succeeded, but DryRun flag is set.
+
+$ aws ec2 run-instances --dry-run --instance-type t3.micro --iam-instance-profile Name=EMR_EC2_DefaultRole
+
+An error occurred (UnauthorizedOperation) when calling the RunInstances operation: You are not authorized to perform this operation. User: arn:aws:sts::891377215247:assumed-role/voclabs/user5460708=kriabova@kse.org.ua is not authorized to perform: iam:PassRole on resource: arn:aws:iam::891377215247:role/EMR_EC2_DefaultRole because no identity-based policy allows the iam:PassRole action. Encoded authorization failure message: kM2cpsCg9PRozUIavR6moGcaC5fP-b96jnm2s-I92ucu4yi3uRPKQCrm9l7v_tMnceKzjnlKo5jZYLJ9G_pJPVAhy25-Nu2QV7eLR3k-gz9KL-87NxqrtqgL8hU56bTkkAJ2lKa2brtAZdMNquopWpxf6fsdN330GLGZ-u8e-oCyjBj8tp7We4y2__QzZoGP3es-iyqL5bJZhO-CPQ8Z2TwWjJ5skpbCQ6Uta0SyQiWbW9PCCuh_FM9h-Rrvsgrz1eSFiRboIjj6ZCwrwklsg2a2n-PLzEmWvbOBXtrVI3M8DQhU59rRd5GK5_Lehx9oMd9BkFWpgH70gBbMBkE0wKp4pDq-KnGxdSJIqhkGkUSfXN3qXJgZU7CXEWJbeI3IDD_I1vJed7SllKp1bSg_rkcwsChUGAuQLUbCoAT2kGcXub2FAoLLDTDN7S0Iv7As817dReK4h9W4t1txK8M1mty77MJd_zMVFG38OYkJUKhyKoEg3hf5zubjyDC2ILYoJ2zbNS70TKiJ6oLwxNa8mktWE7bkbRP6cbYVrQT-WVs7I0CUTECz7B1m
+

@@ -1,0 +1,42 @@
+$ aws cloudformation validate-template --template-body file://infra/iam-readonly.yaml
+{
+    "Parameters": [
+        {
+            "ParameterKey": "ProjectName",
+            "DefaultValue": "kvstore",
+            "NoEcho": false
+        },
+        {
+            "ParameterKey": "RequireMfa",
+            "DefaultValue": "false",
+            "NoEcho": false
+        },
+        {
+            "ParameterKey": "TrustedPrincipalArn",
+            "DefaultValue": "",
+            "NoEcho": false,
+            "Description": "ARN of the principal allowed to assume the role (user, role or account root). Empty = the root of this account, i.e. any principal of this account that is itself allowed to call sts:AssumeRole on this role.\n"
+        }
+    ],
+    "Description": "kv-store M1 IAM: a read-only managed policy and a role that another principal can assume. NOTE: the AWS Academy sandbox denies iam:CreatePolicy and iam:CreateRole, so this stack is delivered as code and its refused deployment is recorded in docs/evidence/. See docs/adr/0004-readonly-policy.md.\n",
+    "Capabilities": [
+        "CAPABILITY_NAMED_IAM"
+    ],
+    "CapabilitiesReason": "The following resource(s) require capabilities: [AWS::IAM::ManagedPolicy]"
+}
+
+$ aws cloudformation deploy --stack-name kv-iam-readonly --capabilities CAPABILITY_NAMED_IAM ...
+
+Waiting for changeset to be created..
+Waiting for stack create/update to complete
+
+Failed to create/update the stack. Run the following command
+to fetch the list of events leading up to the failure
+aws cloudformation describe-stack-events --stack-name kv-iam-readonly
+
+$ aws cloudformation describe-stack-events, чому впало
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|                                                                                                                                                                                                                                                                                                                                                                         DescribeStackEvents                                                                                                                                                                                                                                                                                                                                                                        |
++----------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|  ReadOnlyPolicy|  Resource handler returned message: "User: arn:aws:sts::891377215247:assumed-role/voclabs/user5460708=kriabova@kse.org.ua is not authorized to perform: iam:CreatePolicy on resource: policy kvstore-read-only because no identity-based policy allows the iam:CreatePolicy action. Go to https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/authorization-details/rd53failhkihv4rhtgst8nxa for complete details, or call the GetRequestAuthorizationDetails API with the following authorization id: rd53failhkihv4rhtgst8nxa (Service: Iam, Status Code: 403, Request ID: 7fa11f75-ab34-46d9-b491-0a4b00d2bc65) (SDK Attempt Count: 1)" (RequestToken: 7a2886aa-fb5d-de1e-51de-4cd23c4f9a36, HandlerErrorCode: AccessDenied)   |
++----------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
