@@ -1,0 +1,309 @@
+openapi: 3.1.0
+info:
+  title: kv-store
+  version: "m2"
+  description: |
+    Simplified DynamoDB-like key-value store. Clients talk to the coordinator only.
+    The coordinator picks a shard by consistent hashing of (table, partition key).
+    See docs/adr/0006-api-protocol.md and docs/adr/0008-partition-key.md.
+servers:
+  - url: http://{coordinator}:8080
+    variables:
+      coordinator:
+        default: localhost
+
+tags:
+  - name: tables
+  - name: items
+  - name: internal
+    description: Used by shards and operators, not by clients.
+
+paths:
+  /tables:
+    post:
+      tags: [tables]
+      summary: Register a table definition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TableDefinition" }
+      responses:
+        "201":
+          description: Table created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TableDefinition" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    get:
+      tags: [tables]
+      summary: List tables
+      responses:
+        "200":
+          description: All registered tables
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tables]
+                properties:
+                  tables:
+                    type: array
+                    items: { $ref: "#/components/schemas/TableDefinition" }
+
+  /tables/{table}:
+    parameters:
+      - $ref: "#/components/parameters/Table"
+    get:
+      tags: [tables]
+      summary: Get a table definition
+      responses:
+        "200":
+          description: The table
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TableDefinition" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # Table without a sort key: the item path ends at the partition key.
+  # Table with a sort key: GET here is a range query over that partition.
+  /tables/{table}/items/{pk}:
+    parameters:
+      - $ref: "#/components/parameters/Table"
+      - $ref: "#/components/parameters/PartitionKey"
+    put:
+      tags: [items]
+      summary: CREATE - put an item (table without sort key). Replaces an existing item.
+      requestBody: { $ref: "#/components/requestBodies/Item" }
+      responses:
+        "200": { $ref: "#/components/responses/Stored" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ShardUnavailable" }
+    get:
+      tags: [items]
+      summary: |
+        READ - get an item (table without sort key), or
+        range query over one partition (table with sort key).
+      parameters:
+        - { name: from, in: query, required: false, schema: { type: string }, description: "Lowest sort key, inclusive. Sort-key tables only." }
+        - { name: to, in: query, required: false, schema: { type: string }, description: "Highest sort key, inclusive. Sort-key tables only." }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 1000, default: 100 } }
+      responses:
+        "200":
+          description: The item, or the items of the partition ordered by sort key
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: "#/components/schemas/Item" }
+                  - { $ref: "#/components/schemas/ItemList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ShardUnavailable" }
+    head:
+      tags: [items]
+      summary: EXISTS - 200 if the item exists, 404 otherwise (table without sort key)
+      responses:
+        "200": { description: Exists }
+        "404": { description: Does not exist }
+        "503": { description: Shard unavailable }
+    delete:
+      tags: [items]
+      summary: DELETE - remove an item (table without sort key). Idempotent.
+      responses:
+        "204": { description: Deleted, or did not exist }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ShardUnavailable" }
+
+  /tables/{table}/items/{pk}/{sk}:
+    parameters:
+      - $ref: "#/components/parameters/Table"
+      - $ref: "#/components/parameters/PartitionKey"
+      - $ref: "#/components/parameters/SortKey"
+    put:
+      tags: [items]
+      summary: CREATE - put an item (table with sort key). Replaces an existing item.
+      requestBody: { $ref: "#/components/requestBodies/Item" }
+      responses:
+        "200": { $ref: "#/components/responses/Stored" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ShardUnavailable" }
+    get:
+      tags: [items]
+      summary: READ - get an item (table with sort key)
+      responses:
+        "200":
+          description: The item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Item" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ShardUnavailable" }
+    head:
+      tags: [items]
+      summary: EXISTS (table with sort key)
+      responses:
+        "200": { description: Exists }
+        "404": { description: Does not exist }
+        "503": { description: Shard unavailable }
+    delete:
+      tags: [items]
+      summary: DELETE (table with sort key). Idempotent.
+      responses:
+        "204": { description: Deleted, or did not exist }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ShardUnavailable" }
+
+  /internal/shards:
+    post:
+      tags: [internal]
+      summary: A shard registers itself (on start, then every 10 s as a heartbeat)
+      description: |
+        Served ONLY on the coordinator's internal port (default 8081), which the security group
+        opens to kvstore-shard-sg only. On the client port 8080 this method returns 405.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Shard" }
+      responses:
+        "200": { description: Registered (or re-registered, ring unchanged) }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    get:
+      tags: [internal]
+      summary: List registered shards
+      responses:
+        "200":
+          description: Shards in the ring
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [shards]
+                properties:
+                  shards:
+                    type: array
+                    items: { $ref: "#/components/schemas/Shard" }
+
+  /health:
+    get:
+      tags: [internal]
+      summary: Liveness
+      responses:
+        "200": { description: OK }
+
+  /version:
+    get:
+      tags: [internal]
+      summary: Build version (git commit)
+      responses:
+        "200":
+          description: Version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: string }
+
+components:
+  parameters:
+    Table:
+      name: table
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/TableName" }
+    PartitionKey:
+      name: pk
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 2048 }
+    SortKey:
+      name: sk
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 1024 }
+
+  requestBodies:
+    Item:
+      required: true
+      description: Any JSON object, up to 400 KB.
+      content:
+        application/json:
+          schema: { type: object }
+
+  schemas:
+    TableName:
+      type: string
+      pattern: "^[A-Za-z0-9_-]{3,64}$"
+    TableDefinition:
+      type: object
+      required: [name, partitionKey]
+      properties:
+        name: { $ref: "#/components/schemas/TableName" }
+        partitionKey: { type: string, description: "Attribute name of the partition key" }
+        sortKey: { type: string, description: "Attribute name of the sort key. Omit for a table with a simple key." }
+    Item:
+      type: object
+      required: [pk, value]
+      properties:
+        pk: { type: string }
+        sk: { type: string }
+        value: { type: object }
+    ItemList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Item" }
+    Shard:
+      type: object
+      required: [id, addr, bootId]
+      properties:
+        id: { type: string, example: shard-1 }
+        addr: { type: string, example: "10.20.10.15:9090" }
+        bootId: { type: string, description: "Random ID created when the shard process starts. A new bootId for a known id means the shard restarted and lost its data." }
+        lastSeen: { type: string, format: date-time, readOnly: true }
+        restarts: { type: integer, readOnly: true, description: "How many times this shard came back with a new bootId" }
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error: { type: string, example: table_not_found }
+        message: { type: string }
+
+  responses:
+    Stored:
+      description: Stored
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Item" }
+    BadRequest:
+      description: Invalid input, e.g. wrong key shape for this table
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Table or item not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Table already exists
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ShardUnavailable:
+      description: |
+        shard_unavailable - the shard owning this key did not answer within 2 s;
+        cluster_not_ready - fewer shards registered than EXPECTED_SHARDS
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
