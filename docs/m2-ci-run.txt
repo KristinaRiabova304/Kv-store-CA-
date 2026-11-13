@@ -1,0 +1,27 @@
+Доказ CI/CD M2, 2026-11-13. Задача 6.3 у openspec/changes/m2-sharding/tasks.md.
+
+Run 1: 43381398452, коміт 961bf44, push комітів M2
+  test ✓, deploy ✓ (25 с)
+  kv-network, kv-artifacts, kv-app: No changes. Версія 961bf443f79e уже стояла після ручного deploy-all.sh.
+
+Run 2: 43381596817, коміт 066d2393b364, лише зміна tasks.md
+  test ✓, deploy ✓
+  kv-network: No changes to deploy
+  kv-artifacts: No changes to deploy
+  Збірка 066d2393b364 у s3://kvstore-artifacts-891377215247/releases/066d2393b364/
+  kv-app: Successfully created/updated stack, ReleaseVersion 961bf443f79e → 066d2393b364
+  Сервери перезапущені 06:52-06:53 UTC. Coordinator отримав нову публічну IP: 3.89.20.85 → 54.84.149.228.
+
+Після run 2 з моєї машини:
+  $ curl http://54.84.149.228:8080/version
+  {"version":"066d2393b364"}
+  $ bash scripts/verify-app.sh
+  OK   2 shards registered
+  OK   coordinator runs 066d2393b364
+  OK   CREATE / EXISTS / READ / DELETE / gone after DELETE
+  OK   coordinator-sg: 8080 edge-sg and 31.43.151.148/32, 8081 shard-sg only
+  OK   shard registration refused on 8080
+  ALL CHECKS PASSED
+
+Висновок: push у main → тести → збірка в S3 → оновлення стеку kv-app → сервери з новою версією, без ручних кроків.
+Цей файл закомічено з [skip ci], щоб не запускати ще один деплой.
